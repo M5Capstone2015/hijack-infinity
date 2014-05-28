@@ -46,6 +46,48 @@ import android.media.MediaRecorder;
  * IncomingSink: Is sent a length/value primitive with the length of the
  * last sustained measured frequency and if it was a high or low frequency.
  */
+ 
+ /*
+		--------------Hunt Comments--------------:
+			**
+				--For output:  AudioTrack object
+				--For input:   AudioRecord object
+				--Each of ^^ must run on their own thread!!!
+			**
+				Code for initializing AudioTrack:
+					_audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 
+													_sampleFrequency, AudioFormat.CHANNEL_OUT_STEREO,
+													AudioFormat.ENCODING_PCM_16BIT, 44100,
+													AudioTrack.MODE_STREAM);     
+													
+				...But we don't really care about this, wrong direction!
+			
+			**	
+				Code for initializing AudioRecord:
+					_audioRecord = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
+													_sampleFrequency, AudioFormat.CHANNEL_IN_MONO,
+													AudioFormat.ENCODING_PCM_16BIT, recBufferSize);
+				
+				Link to documentation:  http://developer.android.com/reference/android/media/AudioRecord.html
+				
+				Constructor params definition:
+					public AudioRecord (int audioSource, int sampleRateInHz, int channelConfig, int audioFormat, int bufferSizeInBytes)
+				
+					audioSource:  Where we want to get audio stream from, they use DEFAULT.  You could get the bit stream from
+									an active voice call for example.
+									
+					sampleRateInHz:  The sample rate in Hz, only 44100 Hz guartenteed to work on all devices.
+					
+					channelConfig:  No idea what this means but CHANNEL_IN_MONO is guarenteed to work on all devices.
+					
+					audioFormat:  16bitPCM is supported by all devices
+					
+					recBufferSize:  This sets the total size of the buffer (in bytes) where bits are written from the audio stream.  If
+									buffer runs out, it will "over-flow".  You can call a getMinBufferSize function to avoid an error.
+									
+					
+
+ */
 
 public class AudioReceiver {
 	
