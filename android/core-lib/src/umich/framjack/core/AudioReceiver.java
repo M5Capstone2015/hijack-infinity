@@ -211,35 +211,48 @@ public class AudioReceiver {
 			// with the _powerFrequencyPos var to ensure the wave is continuous. 
 			_stereoBuffer[i*2+1] =  (short) boundToShort(
 				Math.sin(powerMutiplier * _powerFrequencyPos++) * 32760
-			);	
+			);
 		}
 		
 		// To prevent eventual overflows.
 		_powerFrequencyPos = _powerFrequencyPos % (_sampleFrequency * _powerFrequency);
 	}
 	
+	/*
+		All this function really seems to do update edge distance
+	*/
 	private void processInputBuffer(int shortsRead) {
+	
 		// We are basically trying to figure out where the edges are here,
 		// in order to find the distance between them and pass that on to
 		// the higher levels. 
+		
 		double meanVal = 0.0;
 		
+		//  Foreach value that was WRITTEN to the input buffer (this is the return of _audioRecorder.read(_buffer, 0, buffer.length());
 		for (int i = 0; i < shortsRead; i++) {
 			
+			// Get the mean and subtract the offset
 			meanVal = addAndReturnMean(_recBuffer[i]) - addAndReturnBias(_recBuffer[i]);
-			_edgeDistance++;
 			
+			// Increment the edge distance
+			_edgeDistance++;
+						
 			// Cold boot we simply set the search based on
-			// where the first region is located. 
+			// where the first region is located (positive or negative)
 			if (_searchState == SearchState.ZERO_CROSS) {
 				_searchState = meanVal < 0 ? SearchState.NEGATIVE_PEAK : SearchState.POSITIVE_PEAK;
 			}
 			
 			// Have we just seen a zero transistion?
+			/* Does this mean no change in value so we are at the pos/neg peak of a wave?? */
 			if ((meanVal < 0 && _searchState == SearchState.POSITIVE_PEAK) ||
 					(meanVal > 0 && _searchState == SearchState.NEGATIVE_PEAK)) {
 				
+				//  If so it calls the handleNextBit function of whatever object is passed to the interface
 				_sink.handleNextBit(_edgeDistance, _searchState == SearchState.POSITIVE_PEAK);
+				
+				// The resets distance counter and switches peak (neg->pos or pos->neg)
 				_edgeDistance = 0;
 				_searchState = (_searchState == SearchState.NEGATIVE_PEAK) ? SearchState.POSITIVE_PEAK : SearchState.NEGATIVE_PEAK;
 			}
@@ -250,19 +263,36 @@ public class AudioReceiver {
 	// Incoming Bias and Smoothing Functions
 	///////////////////////////////////////////////
 	
+	
+	//
+	//  Adds the params to the toMean array and 
+	//  returns the mean value of the array
+	//
 	private double addAndReturnMean(int in) {
+	
+		/* toMeanPose is initialized to 0 in Audio Receiver class
+		   and _toMean is int[] initialized to {0, 0, 0}
+		*/
 		_toMean[_toMeanPos++] = in;
+		
+		// Then set to the mod of itself and the length of toMean vec? Why
 		_toMeanPos = _toMeanPos % _toMean.length;
 		
 		double sum = 0.0;
 		
+		// Find the sum of the items in toMean array
 		for (int i = 0; i < _toMean.length; i++) {
 			sum += _toMean[i];
 		}
 		
+		// Return mean value
 		return sum / _toMean.length;
 	}
 	
+	//
+	//  Need to read this in more detail...
+	//  But I think it returns the offset of the wave or something?
+	//
 	private double addAndReturnBias(int in) {
 		if (_biasArrayFull) {
 			_biasMean -= (double)_biasArray[_biasArrayPos] / (double)_biasArray.length;
@@ -290,8 +320,9 @@ public class AudioReceiver {
 	///////////////////////////////////////////////
 	// Audio Interface
 	// Note: these exist primarily to pass control to
-	//       the responsible subfunctions. NO code here.
+	//       the responsible sub-functions. NO code here.
 	///////////////////////////////////////////////	
+	
 	
     Runnable _outputGenerator = new Runnable() {       
         public void run() {
@@ -304,11 +335,18 @@ public class AudioReceiver {
         }
     };
     
+	
+	/*
+		--HUNT--
+		Creates thread for reading in bytes.
+		Reads in bits and calls processing function.
+	*/
     Runnable _inputProcessor = new Runnable() {
     	public void run() {
     		Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
     		
     		while (!_stop) {
+				/* */
     			int shortsRead = _audioRecord.read(_recBuffer, 0, _recBuffer.length);
     			processInputBuffer(shortsRead);
     		}
@@ -326,7 +364,7 @@ public class AudioReceiver {
 		_powerFrequency = powerFrequency;
 	}
 	
-	public void registerOutgoingSource(OutgoingSource source) {
+	public void registerOutgoingSource(OutgoingSource source) {T
 		if (_isRunning) {
 			throw new UnsupportedOperationException("AudioIO must be stopped to set a new source.");
 		}
@@ -341,6 +379,9 @@ public class AudioReceiver {
 		_sink = sink;
 	}
 
+	/*
+		What on earth is this doing?
+	*/
 	public void initialize() {
 		// Create buffers to hold what a high and low 
 		// frequency waveform looks like
